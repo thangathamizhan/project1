@@ -147,6 +147,7 @@ const TeacherDashBoard = () => {
       setAssignments((pre) => [assignment, ...pre]);
       setIsCreating(false);
       setNewAssingments({
+        
         title: "",
         description: "",
         deadline: "",

@@ -77,3 +77,33 @@ export const login = async (req, res) => {
     console.error("error while login", error.message);
   }
 };
+
+
+
+export const createAssignment =async(req,res)=>{
+
+try {
+  const {deadline,title,description}=req.body
+   const students =await userModel.find({role:'student'})
+
+   const total =students.length
+
+
+   const newAssignment =new Assignment({
+      title:title,
+      description:description,
+      deadline:deadline,
+      totalStudent:total
+
+   })
+
+   await newAssignment.save()
+
+   res.status(201).json({message:"newassignment is created",newAssignment})
+
+} catch (error) {
+  console.log('error while creating',error.message)
+}
+
+
+}
