@@ -15,9 +15,12 @@ import Label from "../components/Label";
 import Input from "../components/Input";
 import Navbar from "../components/Navbar";
 import { UserInfo } from "../components/UseAuth";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const TeacherDashBoard = () => {
   const [isModelOpen, setModalOpen] = useState(false);
+  const[studentCount,setStudentCount]=useState(0)
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [selectedSubmission, setSelectedSubmission] = useState([]);
@@ -34,6 +37,7 @@ const TeacherDashBoard = () => {
   });
 
   const { user } = useContext(UserInfo);
+  console.log(user)
 
   const openmodel = () => {
     document.body.style.overflow = "hidden";
@@ -43,88 +47,47 @@ const TeacherDashBoard = () => {
     document.body.style.overflow = "";
     setModalOpen(false);
   };
- 
+ const token =user?.token
+const fetchAssignment =async()=>{
 
-  useEffect(() => {
-    const mockAssignments = [
-      {
-        id: 1,
-        title: "React Components Assignment",
-        description:
-          "Create a set of reusable React components with proper props and state management.",
-        deadline: "2025-01-15T23:59:00",
-        createdDate: "2024-12-01T10:00:00",
-        submissionCount: 15,
-        totalStudents: 20,
-      },
-      {
-        id: 2,
-        title: "Database Design Project",
-        description:
-          "Design and implement a normalized database schema for an e-commerce application.",
-        deadline: "2025-01-20T23:59:00",
-        createdDate: "2024-12-05T14:30:00",
-        submissionCount: 8,
-        totalStudents: 20,
-      },
-      {
-        id: 3,
-        title: "Algorithm Analysis Report",
-        description:
-          "Analyze the time and space complexity of various sorting algorithms.",
-        deadline: "2024-12-20T23:59:00",
-        createdDate: "2024-11-25T09:15:00",
-        submissionCount: 18,
-        totalStudents: 20,
-      },
-    ];
+try {
+  const response = await axios.get('http://localhost:5000/api/auth/getAssignment',{
+    headers:{Authorization:`Bearer ${token}`}
 
-    const mockSubmissions = [
-      {
-        id: 1,
-        assignmentId: 1,
-        assignmentTitle: "React Components Assignment",
-        studentId: "student1",
-        studentName: "Alice Johnson",
-        studentEmail: "alice.johnson@university.edu",
-        fileName: "react-components-alice.zip",
-        submissionDate: "2024-12-14T18:30:00",
-        grade: 85,
-        feedback:
-          "Good understanding of React concepts. Component structure is well organized.",
-      },
-      {
-        id: 2,
-        assignmentId: 1,
-        assignmentTitle: "React Components Assignment",
-        studentId: "student2",
-        studentName: "Bob Smith",
-        studentEmail: "bob.smith@university.edu",
-        fileName: "react-assignment-bob.zip",
-        submissionDate: "2024-12-13T20:15:00",
-        grade: null,
-        feedback: "",
-      },
-      {
-        id: 3,
-        assignmentId: 2,
-        assignmentTitle: "Database Design Project",
-        studentId: "student3",
-        studentName: "Carol Davis",
-        studentEmail: "carol.davis@university.edu",
-        fileName: "database-design-carol.pdf",
-        submissionDate: "2024-12-12T16:45:00",
-        grade: 92,
-        feedback: "Excellent normalization and clear documentation. Well done!",
-      },
-    ];
-    setAssignments(mockAssignments);
-    setSubmissions(mockSubmissions);
-  }, []);
+  })
+  const res =await axios.get('http://localhost:5000/api/auth/getuser',{
+    headers:{Authorization:`Bearer ${token}`}
+  })
+  
+setStudentCount(res.data.totalstudents)
+  setAssignments(response.data.Assignments)
+} catch (error) {
 
-  const handleAssignment = (e) => {
+  if(error.response && error.response.status ===403){
+    toast.error("session expired")
+    localStorage.clear()
+    window.location.href ='/'
+  }else{
+
+    console.log('error while get',error.message)
+  }
+  
+}
+
+
+
+}
+useEffect(()=>{
+  if(token){
+    fetchAssignment()
+  }
+},[token])
+
+
+
+  const handleAssignment = async(e) => {
     e.preventDefault();
-
+    
     if (
       !newAssignment.title.trim() ||
       !newAssignment.description.trim() ||
@@ -132,41 +95,56 @@ const TeacherDashBoard = () => {
     ) {
       alert("Please fill all the fields");
       return;
+    }else{
+
+      setIsCreating(true)
     }
-
-    setIsCreating(true);
-
-    setTimeout(() => {
-      const assignment = {
-        id: Date.now(),
-        ...newAssignment,
-        createdDate: new Date(),
-        submissionCount: 0,
-        totalStudents: 20,
-      };
-      setAssignments((pre) => [assignment, ...pre]);
-      setIsCreating(false);
+    try {
+      const response =await axios.post('http://localhost:5000/api/auth/createAssignment',newAssignment,{headers:{Authorization:`Bearer ${token}`}})
+      setAssignments([response.data.newAssignment,...assignments])   
       setNewAssingments({
-        
-        title: "",
-        description: "",
-        deadline: "",
-      });
-      setModalOpen(false);
-    }, 2000);
-  };
+    title: "",
+    description: "",
+    deadline: "",
+
+  })
+  toast.success("assignment succesfully created")  
+    } catch (error) {
+      console.log("error:",error.message)
+    }finally{
+      setIsCreating(false)
+    closeModel()
+    }
+   
+
+  }
 
   const handleAssignmentForm = (e) => {
     const { value, name } = e.target;
     setNewAssingments((pre) => ({ ...pre, [name]: value }));
   };
+  
+  const handlesubmission = async(assignment) => {
+    try {
+        const res =await axios.get(`http://localhost:5000/api/auth/getsubmission/${assignment._id}`)
+        console.log(res.data)
+        setSubmissions(res.data.submissions
+)
+        console.log("receiver submissions",submissions)
+    } catch (error) {
+        console.log("error while get submision",error.message)
+    }
+    
+     
 
-  const handlesubmission = (assignment) => {
+
     const filterSubmission = submissions.filter(
       (sub) => sub.assignmentId === assignment.id
     );
     setSelectedSubmission(filterSubmission);
     setSubmodal(true);
+
+
   };
 
   const handleSave = () => {
@@ -274,7 +252,7 @@ const TeacherDashBoard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {assignments.map((assignment) => (
               <div
-                key={assignment.id}
+                key={assignment._id}
                 className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all p-6"
               >
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -302,7 +280,7 @@ const TeacherDashBoard = () => {
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-green-500" />
                     <span>
-                      {assignment.submissionCount}/{assignment.totalStudents}{" "}
+                      {assignment.submissionCount.length}/{studentCount}{" "}
                       submitted
                     </span>
                   </div>
@@ -312,7 +290,7 @@ const TeacherDashBoard = () => {
                   onClick={() => handlesubmission(assignment)}
                   className="w-full border-gray-300 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-all rounded-lg py-2 font-medium"
                 >
-                  View Submissions ({assignment.submissionCount})
+                  View Submissions ({assignment.submissionCount.length})
                 </Button>
               </div>
             ))}

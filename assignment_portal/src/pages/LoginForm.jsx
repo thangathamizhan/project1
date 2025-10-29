@@ -39,6 +39,8 @@ const LoginForm = () => {
      const res =await axios.post('http://localhost:5000/api/auth/login',formData)
 
     console.log(res.data);
+
+    
     const userd ={
       name:res.data.name,
       email:res.data.email,

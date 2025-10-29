@@ -24,4 +24,16 @@ try {
 
 
 
+
+}
+
+export const isteacher =(req,res,next)=>{
+
+if(req.user.role !=='teacher'){
+
+return res.status(403).json({message:"access denied:only teacher"})
+
+}
+next()
+
 }

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const submissionSchema = new mongoose.Schema({
-  studentsId: {
+  studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'userData',
     required: true,
@@ -20,17 +20,17 @@ const submissionSchema = new mongoose.Schema({
     default: Date.now(
 
     )
-  }, grade: { type: Number, required: true, default: null },
-  feedBack: { type: String, required: true, default: '' }
+  }, grade: { type: Number ,default: null },
+  feedBack: { type: String , default: '' }
 });
 
 const Assignmentschema = new mongoose.Schema({
   title: { type: String, required: true },
-  description: { type: string, required: true },
+  description: { type: String, required: true },
   deadline: { type: Date, required: true },
-  createdDate: { type: Date, required: true },
+  createdAt: { type: Date, default: Date.now() },
   submissionCount: [submissionSchema],
-  totalStudent: { type: Number, default:0}
+  totalStudent: { type: Number, default: 0 }
 });
-const assignmentModel =mongoose.model('Assignment',Assignmentschema)
+const assignmentModel = mongoose.model('Assignment', Assignmentschema)
 export default assignmentModel

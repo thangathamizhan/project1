@@ -4,6 +4,9 @@ import Button from "../components/Button";
 import Navbar from "../components/Navbar";
 import { UserInfo } from "../components/UseAuth";
 import Modol from "../components/Model";
+import toast from "react-hot-toast";
+import axios from "axios";
+
 
 const StudentDashboard = () => {
   const [upLoadfile,setFileUpload]=useState(null)
@@ -12,80 +15,61 @@ const StudentDashboard = () => {
   const [load,setLoad]=useState(false)
   const[selectedId,setSelectedId]=useState(null)
   const{user} =useContext(UserInfo)
-  useEffect(()=>{
-     const mockAssignments = [
-      {
-        id: 1,
-        title: 'React Components Assignment',
-        description: 'Create a set of reusable React components with proper props and state management.',
-        deadline: '2025-01-15T23:59:00',
-        status: 'pending'
-      },
-      {
-        id: 2,
-        title: 'Database Design Project',
-        description: 'Design and implement a normalized database schema for an e-commerce application.',
-        deadline: '2025-01-20T23:59:00',
-        status: 'pending'
-      },
-      {
-        id: 3,
-        title: 'Algorithm Analysis Report',
-        description: 'Analyze the time and space complexity of various sorting algorithms.',
-        deadline: '2024-12-20T23:59:00',
-        status: 'pending'
-      }
-    ]
-  const mockSubmittedAssignments = [
-      {
-        id: 4,
-        title: 'JavaScript Fundamentals Quiz',
-        description: 'Complete assessment on JavaScript basics including variables, functions, and objects.',
-        deadline: '2024-12-15T23:59:00',
-        status: 'graded',
-        submissionDate: '2024-12-14T18:30:00',
-        grade: 85,
-        feedback: 'Good understanding of the concepts. Pay attention to arrow function syntax in future assignments.'
-      },
-      {
-        id: 5,
-        title: 'CSS Layout Challenge',
-        description: 'Create responsive layouts using Flexbox and CSS Grid.',
-        deadline: '2024-12-10T23:59:00',
-        status: 'submitted',
-        submissionDate: '2024-12-09T20:15:00'
-      }
-    ]
+const token =user?.token
 
-    setsubmittedassignments(mockSubmittedAssignments)
-    setAssignments(mockAssignments)
-  },[])
-
-  const handleFile =(file)=>{
-   setLoad(true)
-
-   setTimeout(() => {
-    
-    const completed =assignment.find((assign)=>assign.id==selectedId)
-
-    if(completed){
-      const newSubmited ={
-       ...completed,
-       status:"submitted",
-       submissionDate:new Date().toISOString(),
-       fileName:file.name
-
-
-      }
-      const updatedAssignments =assignment.filter((assign)=>assign.id !==selectedId)
-
-      setAssignments(updatedAssignments)
-      setsubmittedassignments([...submittedAssignments,newSubmited])
+  const fetchAsignment =async()=>{
+   
+   try {
+      const response =await axios.get('http://localhost:5000/api/auth/getAssignment',{headers:{Authorization:`Bearer ${token}`}})
+      console.log(response.data)
+      setAssignments(response.data.Assignments)
+   } catch (error) {
+    if(error.response){
+      toast.error(error.response.status)
     }
-    setFileUpload(false)
-    setSelectedId(null)
-    setLoad(false)
-   }, 2000);
+    console.log('error while fetch asignment',error.message)
+   }
+
+
+  }
+  useEffect(()=>{
+     fetchAsignment()
+     
+  },[token])
+
+  const handleFile =async(file)=>{
+    try {
+  setLoad(true)
+  const formData =new FormData()
+  formData.append('file',file)
+  formData.append("assignmentId",selectedId)
+
+  const res = await axios.post('http://localhost:5000/api/auth/upload',formData,{
+    headers:{
+      'Content-Type':'multipart/form-data',
+      'Authorization':`Bearer ${token}`
+    },
+    
+  })
+  const completed =assignment.find((assign)=>assign._id ==selectedId)
+    const newsubmitted ={
+      ...completed,
+      status:"submitted",
+      submisionDate:new Date().toISOString(),
+      filename:file.name,
+      fileUrl:res.data.fileUrl
+    }
+    const updatedAssignment =assignment.filter((assign)=>assign._id !==selectedId)
+    setAssignments(updatedAssignment)
+    setsubmittedassignments([...submittedAssignments,newsubmitted])
+    toast.success("file uploaded successfully")
+} catch (error) {
+  toast.error("error upload",error.message)
+}finally{
+setFileUpload(false);
+    setSelectedId(null);
+    setLoad(false);
+}
                                
 
   }
@@ -153,7 +137,7 @@ const StudentDashboard = () => {
             <h2 className="text-2xl text-gray-900 mb-6 font-bold">
               Available Assignments
             </h2>{assignment.map((assignmen)=>(
-                   <div key={assignmen.id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 transition-shadow duration-200 hover:shadow-lg">
+                   <div key={assignmen._id} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 transition-shadow duration-200 hover:shadow-lg">
               <div className="flex justify-between mb-4">
                 <div className="space-y-3 flex-1">
                   <h3 className="text-lg text-gray-900 font-bold">
@@ -163,23 +147,24 @@ const StudentDashboard = () => {
                 {assignmen.description}
                   </p>
                 </div>
-                <div className="flex items-center space-x-1 px-2 py-1 text-xs font-medium bg-red-100 rounded-md text-red-600">
-                  <OctagonAlert className="h-3 w-3" />
-                  <span>OverDue</span>
-                </div>
+              
               </div>
 
               <div className="text-gray-600 flex space-x-2 items-center mb-4">
                 <Calendar className="h-4 w-4" />
                 <span className="text-gray-600 text-sm">
-                  {assignmen.deadline}
+                  {new Date(assignmen.deadline).toLocaleString('en-IN',{
+                    dateStyle:"medium",
+                    timeStyle:"short"
+                  })}
                 </span>
               </div>
-              <Button onClick={()=>{setSelectedId(assignmen.id), setFileUpload(true)}} className="w-full">Submit Assignment</Button>
+              <Button onClick={()=>{setSelectedId(assignmen._id);
+                 setFileUpload(true);}} className="w-full">Submit Assignment</Button>
             </div>
 
             ))}
-            {<Modol isopen={upLoadfile} onClose={()=>{setFileUpload(false)}} onUpload={handleFile} loading={load}/>}
+            {<Modol isOpen={upLoadfile} onClose={()=>{setFileUpload(false)}} onUpload={handleFile} loading={load}/>}
          
           
           </div>
@@ -207,17 +192,24 @@ const StudentDashboard = () => {
               <div className="flex items-center space-x-4 mb-4">
                 <div className="flex items-center space-x-2 text-gray-600">
                   <Calendar className="h-4 w-4" />
-                  <span>{sub.deadline}</span>
+                  <span className="tracking-tighter">deadline:{new Date(sub.deadline).toLocaleString('en-In',{
+                    dateStyle:'medium',
+                    timeStyle:"short"
+                  })}</span>
                 </div>
                 <div className="flex space-x-2 text-gray-600 items-center">
                   <File className="w-4 h-4" />
-                  <span>Submitted: {sub.submissionDate}</span>
+                  <span className="tracking-tighter">Submitted at:{new Date(sub.submisionDate).toLocaleString('en-In',{
+                    dateStyle:'medium',
+                    timeStyle:'short'
+
+                  })}</span>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-800 font-medium">Grade</span>
-                  <span className="text-green-600 font-bold">{sub.grade}</span>
+                  <span className="text-green-600 font-bold">{sub.grade ||null}</span>
                 </div>
                 <div>
                   <span className="text-gray-900">FeedBack:</span>

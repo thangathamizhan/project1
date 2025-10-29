@@ -5,6 +5,8 @@ import connecDb from './config/db.js'
 import { Route } from './Routes/userRoutes.js'
 
 
+
+
 dotenv.config()
 connecDb()
 const app =express()
@@ -12,6 +14,7 @@ const app =express()
 app.use(express.json())
 app.use(cors())
 app.use('/api/auth',Route)
+app.use('/uploads',express.static("uploads"))
 const PORT =process.env.PORT || 5000
 
 app.listen(PORT,()=>{
