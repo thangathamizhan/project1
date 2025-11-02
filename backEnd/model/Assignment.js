@@ -3,9 +3,17 @@ import mongoose from "mongoose";
 const submissionSchema = new mongoose.Schema({
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'userData',
+    ref: 'usersData',
     required: true,
-  }, assignmentId: {
+  },
+  studentName:{
+    type:String,
+    required:true
+  },
+  studentEmail:{
+   type:String,
+   required:true
+  } ,assignmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Assignment",
     required: true
@@ -21,7 +29,7 @@ const submissionSchema = new mongoose.Schema({
 
     )
   }, grade: { type: Number ,default: null },
-  feedBack: { type: String , default: '' }
+  feedback: { type: String , default: '' }
 });
 
 const Assignmentschema = new mongoose.Schema({

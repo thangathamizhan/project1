@@ -169,6 +169,13 @@ if(!assignment){
   return res.status(404).json({message:"assignment not found"})
 
 }
+const student =await userModel.findById(studentId) 
+
+if(!student){
+
+  return res.status(404).json({message:"no student found"})
+}
+
 console.log("hi from upload submission")
 console.log("studentid is recieved:",studentId)
 console.log("asignment is recieved:",assignmentId)
@@ -181,6 +188,8 @@ console.log("asignment is recieved:",assignmentId)
       const newsubmision ={
         studentId:studentId,
         assignmentId:assignmentId,
+        studentName:student.name,
+        studentEmail:student.email,
         fileUrl:fileUrl
       }
      await assignment.submissionCount.push(newsubmision)
@@ -203,7 +212,7 @@ try {
   if(!submission){
     return res.status(404).json({message:"no submission found"})
   }
-  res.status(201).json({message:"fetched the submission clealy",submissions:submission})
+  res.status(201).json({message:"fetched the submission clealy",submissions:submission.submissionCount})
   
 } catch (error) {
   console.log("error while get the submission",error.message)
@@ -214,6 +223,73 @@ try {
 
 
  }
+
+  export const studentSubmission =async(req,res)=>{
+
+  try {
+    const studentId =req.user.id
+
+    console.log(
+      "studentid:",studentId
+    )
+
+    const assignments = await assignmentModel.find({"submissionCount.studentId":studentId}).populate('submissionCount.studentId','name email')
+    const  studentSubmissions =assignments.map(assignment=>{
+      const studentSubmission=assignment.submissionCount.find((sub)=>sub.studentId._id.toString()==studentId.toString())
+
+      return{
+        assignmentId:assignment._id,
+        assignmentTitle:assignment.title,
+        description:assignment.description,
+        deadline:assignment.deadline,
+        submission:studentSubmission
+      }
+    })
+
+   res.status(201).json({message:"succefully fetched",studentSubmissions})
+    
+  } catch (error) {
+    console.log("error while get student submission",error.message)
+    res.status(500).json({messgae:"server error"})
+  }
+ }
+
+
+ export const  gradeSubmission =async (req,res)=>{
+
+  try {
+    const {grade,feedback} =req.body;
+    const {studentId,assignmentId}=req.params
+
+
+    const assignment =await assignmentModel.findById(assignmentId)
+   if(! assignment){
+    return res.status(404).json({message:""})
+   }
+    const studentIndex =assignment.submissionCount.findIndex((s)=>s.studentId.toString() ===studentId)
+
+    if(studentIndex === -1){
+      return res.status(404).json({message:"submision not found"})
+    }
+    assignment.submissionCount[studentIndex].grade = grade;
+    assignment.submissionCount[studentIndex].feedback = feedback;
+
+
+    await assignment.save()
+    res.status(201).json({message:"grade saved successFully"})
+
+    
+  } catch (error) {
+    console.log("error while gradeSubmission")
+    res.status(500).json({message:"server error"})
+  }
+
+
+
+
+
+
+ } 
 
 
 

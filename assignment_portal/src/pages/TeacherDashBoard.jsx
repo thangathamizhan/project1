@@ -20,7 +20,7 @@ import toast from "react-hot-toast";
 
 const TeacherDashBoard = () => {
   const [isModelOpen, setModalOpen] = useState(false);
-  const[studentCount,setStudentCount]=useState(0)
+  const [studentCount, setStudentCount] = useState(0);
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [selectedSubmission, setSelectedSubmission] = useState([]);
@@ -37,8 +37,6 @@ const TeacherDashBoard = () => {
   });
 
   const { user } = useContext(UserInfo);
-  console.log(user)
-
   const openmodel = () => {
     document.body.style.overflow = "hidden";
     setModalOpen(true);
@@ -47,47 +45,40 @@ const TeacherDashBoard = () => {
     document.body.style.overflow = "";
     setModalOpen(false);
   };
- const token =user?.token
-const fetchAssignment =async()=>{
+  const token = user?.token;
+  const fetchAssignment = async () => {
+    try {
+      const response = await axios.get(
+        "http://localhost:5000/api/auth/getAssignment",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const res = await axios.get("http://localhost:5000/api/auth/getuser", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-try {
-  const response = await axios.get('http://localhost:5000/api/auth/getAssignment',{
-    headers:{Authorization:`Bearer ${token}`}
+      setStudentCount(res.data.totalstudents);
+      setAssignments(response.data.Assignments);
+    } catch (error) {
+      if (error.response && error.response.status === 403) {
+        toast.error("session expired");
+        localStorage.clear();
+        window.location.href = "/";
+      } else {
+        console.log("error while get", error.message);
+      }
+    }
+  };
+  useEffect(() => {
+    if (token) {
+      fetchAssignment();
+    }
+  }, [token]);
 
-  })
-  const res =await axios.get('http://localhost:5000/api/auth/getuser',{
-    headers:{Authorization:`Bearer ${token}`}
-  })
-  
-setStudentCount(res.data.totalstudents)
-  setAssignments(response.data.Assignments)
-} catch (error) {
-
-  if(error.response && error.response.status ===403){
-    toast.error("session expired")
-    localStorage.clear()
-    window.location.href ='/'
-  }else{
-
-    console.log('error while get',error.message)
-  }
-  
-}
-
-
-
-}
-useEffect(()=>{
-  if(token){
-    fetchAssignment()
-  }
-},[token])
-
-
-
-  const handleAssignment = async(e) => {
+  const handleAssignment = async (e) => {
     e.preventDefault();
-    
+
     if (
       !newAssignment.title.trim() ||
       !newAssignment.description.trim() ||
@@ -95,74 +86,82 @@ useEffect(()=>{
     ) {
       alert("Please fill all the fields");
       return;
-    }else{
-
-      setIsCreating(true)
+    } else {
+      setIsCreating(true);
     }
     try {
-      const response =await axios.post('http://localhost:5000/api/auth/createAssignment',newAssignment,{headers:{Authorization:`Bearer ${token}`}})
-      setAssignments([response.data.newAssignment,...assignments])   
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/createAssignment",
+        newAssignment,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAssignments([response.data.newAssignment, ...assignments]);
       setNewAssingments({
-    title: "",
-    description: "",
-    deadline: "",
-
-  })
-  toast.success("assignment succesfully created")  
+        title: "",
+        description: "",
+        deadline: "",
+      });
+      toast.success("assignment succesfully created");
     } catch (error) {
-      console.log("error:",error.message)
-    }finally{
-      setIsCreating(false)
-    closeModel()
+      console.log("error:", error.message);
+    } finally {
+      setIsCreating(false);
+      closeModel();
     }
-   
-
-  }
+  };
 
   const handleAssignmentForm = (e) => {
     const { value, name } = e.target;
     setNewAssingments((pre) => ({ ...pre, [name]: value }));
   };
-  
-  const handlesubmission = async(assignment) => {
+
+  const handlesubmission = async (assignment) => {
     try {
-        const res =await axios.get(`http://localhost:5000/api/auth/getsubmission/${assignment._id}`)
-        console.log(res.data)
-        setSubmissions(res.data.submissions
-)
-        console.log("receiver submissions",submissions)
+      const res = await axios.get(
+        `http://localhost:5000/api/auth/getsubmission/${assignment._id}`
+      );
+      console.log(res.data);
+      setSubmissions(res.data.submissions);
+      setSelectedSubmission(res.data.submissions);
+      setSubmodal(true);
+
+      console.log("receiver submissions", submissions);
     } catch (error) {
-        console.log("error while get submision",error.message)
+      console.log("error while get submision", error.message);
     }
-    
-     
-
-
-    const filterSubmission = submissions.filter(
-      (sub) => sub.assignmentId === assignment.id
-    );
-    setSelectedSubmission(filterSubmission);
-    setSubmodal(true);
-
-
   };
 
-  const handleSave = () => {
-    setSubmissions((presub) =>
-      presub.map((sub) =>
-        sub.id === editingSubmissionId
-          ? { ...sub, grade: editedGrade, feedback: feedback }
-          : sub
-      )
-    );
-    setSelectedSubmission((presub) =>
-      presub.map((sub) =>
-        sub.id === editingSubmissionId
-          ? { ...sub, grade: editedGrade, feedback: feedback }
-          : sub
-      )
-    );
-    setEditingSubmissionId(null);
+  const handleSave = async () => {
+    try {
+      const sub = selectedSubmission.find((s) => s._id === editingSubmissionId);
+
+      if (!sub) {
+        toast.error("no submission is selected");
+        return;
+      }
+      
+      await axios.put(
+        `http://localhost:5000/api/auth/grade/${sub.studentId}/${sub.assignmentId}`,
+        { grade: editedGrade, feedback },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      console.log('hiii')
+
+      const updatedSubs = submissions.map((s) =>
+        s._id === editingSubmissionId ? {...s, grade: editedGrade, feedback } : s
+      );
+      setSubmissions(updatedSubs);
+      setSelectedSubmission([...updatedSubs]);
+
+      setEditingSubmissionId(null);
+      setEditedGrade("");
+      setFeedBack("");
+      console.log(editingSubmissionId)
+      toast.success("grade and feedBack Saved");
+    } catch (error) {
+      console.log("error saving grade", error.message);
+      toast.error("failed to save grade");
+    }
   };
 
   return (
@@ -174,7 +173,7 @@ useEffect(()=>{
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">
-                Welcome back, Mr. {user?.name ||'Guest'}
+                Welcome back, Mr. {user?.name || "Guest"}
               </h1>
               <p className="text-gray-600 mt-2">
                 Manage assignments and review student submissions.
@@ -373,7 +372,8 @@ useEffect(()=>{
           {subModal && (
             <div
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
-           onClick={()=>setSubmodal(false)} >
+              onClick={() => setSubmodal(false)}
+            >
               <div
                 onClick={(e) => e.stopPropagation()}
                 className="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6 overflow-y-auto max-h-[90vh]"
@@ -392,7 +392,7 @@ useEffect(()=>{
                   <div className="space-y-8">
                     {selectedSubmission.map((sub) => (
                       <div
-                        key={sub.id}
+                        key={sub._id}
                         className="bg-gray-50 border border-gray-200 rounded-lg p-5"
                       >
                         <div className="flex items-center gap-4 mb-3">
@@ -406,6 +406,14 @@ useEffect(()=>{
                             <p className="text-sm text-gray-600">
                               {sub.studentEmail}
                             </p>
+                            <a
+                              className="text-blue-500 font-bold text-sm "
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              href={sub.fileUrl}
+                            >
+                              see the assignment
+                            </a>
                           </div>
                         </div>
 
@@ -414,25 +422,23 @@ useEffect(()=>{
                             Grade
                           </span>
                           <div className="flex items-center gap-2">
-                            {sub.id === editingSubmissionId ? (
+                            {sub._id === editingSubmissionId ? (
                               <Input
                                 type="number"
                                 value={editedGrade}
-                                onChange={(e) =>
-                                  setEditedGrade(e.target.value)
-                                }
+                                onChange={(e) => setEditedGrade(e.target.value)}
                                 className="w-20 border-gray-300 rounded-md"
                               />
                             ) : (
                               <span className="text-xl font-bold text-green-600">
-                                {sub.grade}/100
+                                {sub?.grade}/100
                               </span>
                             )}
                             <Pencil
                               className="w-5 h-5 text-gray-500 cursor-pointer hover:text-gray-800"
                               onClick={() => {
                                 setEditedGrade(sub.grade ?? "");
-                                setEditingSubmissionId(sub.id);
+                                setEditingSubmissionId(sub._id);
                                 setFeedBack(sub.feedback ?? "");
                               }}
                             />
@@ -443,7 +449,7 @@ useEffect(()=>{
                           <h4 className="text-gray-800 font-medium mb-2">
                             Feedback
                           </h4>
-                          {sub.id === editingSubmissionId ? (
+                          {sub._id === editingSubmissionId ? (
                             <div className="space-y-3">
                               <Input
                                 type="text"
@@ -480,7 +486,7 @@ useEffect(()=>{
                         <Button
                           variant="outline"
                           onClick={() =>
-                            alert(`${sub.fileName} is downloading`)
+                            alert(`${sub?.fileName} is downloading`)
                           }
                           className="w-full mt-4 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
                         >

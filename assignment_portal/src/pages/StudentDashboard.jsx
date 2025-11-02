@@ -17,12 +17,33 @@ const StudentDashboard = () => {
   const{user} =useContext(UserInfo)
 const token =user?.token
 
-  const fetchAsignment =async()=>{
+
+const fetchsubmission =async()=>{
+try {
+    const res = await axios.get("http://localhost:5000/api/auth/student/submission",{headers:{
+      Authorization:`Bearer ${token}`
+    }})
+    return res.data.studentSubmissions
+} catch (error) {
+  console.log("error while get ",error.message)
+}
+
+
+console.log("submitted assignments",submittedAssignments)
+
+
+}
+
+  const fetchAsignment =async(studentSubs)=>{
    
    try {
       const response =await axios.get('http://localhost:5000/api/auth/getAssignment',{headers:{Authorization:`Bearer ${token}`}})
       console.log(response.data)
-      setAssignments(response.data.Assignments)
+   const submittedIds =studentSubs.map((submittedAssignment)=>submittedAssignment.assignmentId)
+     const AvailableAssigmnent = response.data.Assignments.filter((assignment)=>!submittedIds.includes(assignment._id))
+
+      setAssignments(AvailableAssigmnent)
+      setsubmittedassignments(studentSubs)
    } catch (error) {
     if(error.response){
       toast.error(error.response.status)
@@ -33,12 +54,18 @@ const token =user?.token
 
   }
   useEffect(()=>{
-     fetchAsignment()
-     
+    const loadData =async()=>{
+
+ const subs =  await   fetchsubmission()
+     await fetchAsignment(subs)
+    }
+    loadData()
   },[token])
 
   const handleFile =async(file)=>{
     try {
+
+       
   setLoad(true)
   const formData =new FormData()
   formData.append('file',file)
@@ -63,6 +90,7 @@ const token =user?.token
     setAssignments(updatedAssignment)
     setsubmittedassignments([...submittedAssignments,newsubmitted])
     toast.success("file uploaded successfully")
+    fetchsubmission()
 } catch (error) {
   toast.error("error upload",error.message)
 }finally{
@@ -93,7 +121,7 @@ setFileUpload(false);
                 <p className="text-gray-600 text-sm font-medium">
                   Total Assignments
                 </p>
-                <p className="text-gray-900 text-2xl font-bold">{assignment.length +submittedAssignments.length}</p>
+                <p className="text-gray-900 text-2xl font-bold">{assignment.length +submittedAssignments?.length}</p>
               </div>
               <BookOpen className="text-blue-600 h-8 w-8" />
             </div>
@@ -104,7 +132,7 @@ setFileUpload(false);
                 <p className="text-gray-600 text-sm font-medium">
                   submitted  Assignments
                 </p>
-                <p className="text-gray-900 text-2xl font-bold">{submittedAssignments.length}</p>
+                <p className="text-gray-900 text-2xl font-bold">{submittedAssignments?.length}</p>
               </div>
               <CircleCheckBig className="text-green-600 h-8 w-8" />
             </div>
@@ -164,7 +192,7 @@ setFileUpload(false);
             </div>
 
             ))}
-            {<Modol isOpen={upLoadfile} onClose={()=>{setFileUpload(false)}} onUpload={handleFile} loading={load}/>}
+            {<Modol isOpen={upLoadfile} onClose={()=>{setFileUpload(false);setLoad(false)}} onUpload={handleFile} loading={load}/>}
          
           
           </div>
@@ -172,34 +200,39 @@ setFileUpload(false);
           <div>
             <h2 className="text-2xl text-gray-900 mb-8 font-bold">
               Submitted Assignments
-            </h2>{submittedAssignments.map((sub)=>(
-                <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 transition-shadow duration-200">
+            </h2>{
+            
+            submittedAssignments.map((sub)=>(
+                <div key={sub.assignmentId} className="bg-white rounded-lg shadow-md border border-gray-200 p-6 transition-shadow duration-200">
               <div className="flex justify-between">
                 <div className="flex-1 space-y-2 mb-4">
                   <h2 className="text-lg font-bold text-gray-900">
-                   {sub.title}
+                   {sub.assignmentTitle}
                   </h2>
                   <p className="text-gray-600">
                    {sub.description}
                   </p>
                 </div>
-                <div className="flex items-center text-green-600 bg-green-100 rounded-md space-x-1 text-sm px-2 py-1">
+                {sub.submission?.grade==null ? <div className="flex items-center text-green-600 bg-green-100 rounded-md space-x-1 text-sm px-2 py-1">
+                  <Check className="h-3 w-3" />
+                  <span>submitted</span>
+                </div>:<div className="flex items-center text-green-600 bg-green-100 rounded-md space-x-1 text-sm px-2 py-1">
                   <Check className="h-3 w-3" />
                   <span>Graded</span>
-                </div>
+                </div>}
               </div>
 
               <div className="flex items-center space-x-4 mb-4">
                 <div className="flex items-center space-x-2 text-gray-600">
                   <Calendar className="h-4 w-4" />
-                  <span className="tracking-tighter">deadline:{new Date(sub.deadline).toLocaleString('en-In',{
+                  <span className="tracking-tighter">deadline:{new Date(sub?.deadline).toLocaleString('en-In',{
                     dateStyle:'medium',
                     timeStyle:"short"
                   })}</span>
                 </div>
                 <div className="flex space-x-2 text-gray-600 items-center">
                   <File className="w-4 h-4" />
-                  <span className="tracking-tighter">Submitted at:{new Date(sub.submisionDate).toLocaleString('en-In',{
+                  <span className="tracking-tighter">Submitted at:{new Date(sub.submission?.submittedAt).toLocaleString('en-In',{
                     dateStyle:'medium',
                     timeStyle:'short'
 
@@ -209,12 +242,12 @@ setFileUpload(false);
               <div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-800 font-medium">Grade</span>
-                  <span className="text-green-600 font-bold">{sub.grade ||null}</span>
+                  <span className="text-green-600 font-bold">{sub.submission?.grade ||null}</span>
                 </div>
                 <div>
                   <span className="text-gray-900">FeedBack:</span>
                   <p className="text-gray-600">
-                    {sub.feedback}
+                    {sub.submission?.feedback}
                   </p>
                 </div>
               </div>

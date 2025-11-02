@@ -7,10 +7,10 @@ const ProtectRoutes = ({children,allowedRole}) => {
     const {user} =useContext(UserInfo)
 
 
-if( !user.role){
+if( !user?.role){
     return <Navigate to='/' replace/>
 }
-if(allowedRole && user.role !==allowedRole){
+if(allowedRole && user?.role !==allowedRole){
     return <Navigate to='/' replace/>
 }
 

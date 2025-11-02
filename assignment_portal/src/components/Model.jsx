@@ -1,9 +1,11 @@
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 const Modol = ({ isOpen, onClose, onUpload, loading }) => {
   const [file, setFile] = useState(null);
   if (!isOpen) return null;
+  
 
   return (
     <div className="min-h-screen fixed inset-0 bg-black/50 z-50 flex justify-center items-center">
@@ -32,7 +34,7 @@ const Modol = ({ isOpen, onClose, onUpload, loading }) => {
           <button
             onClick={() => {
               if (file) onUpload(file);
-              else alert("Please select a file first!");
+              else toast.error("Please select a file first!");
             }}
             className="px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center justify-center"
             disabled={loading}
