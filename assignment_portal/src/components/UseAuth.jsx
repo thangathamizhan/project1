@@ -17,6 +17,7 @@ const InfoProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
+
     localStorage.removeItem('user')
   };
 

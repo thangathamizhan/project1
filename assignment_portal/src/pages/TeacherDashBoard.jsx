@@ -37,6 +37,8 @@ const TeacherDashBoard = () => {
   });
 
   const { user } = useContext(UserInfo);
+  const token = user?.token;
+
   const openmodel = () => {
     document.body.style.overflow = "hidden";
     setModalOpen(true);
@@ -45,24 +47,21 @@ const TeacherDashBoard = () => {
     document.body.style.overflow = "";
     setModalOpen(false);
   };
-  const token = user?.token;
+
   const fetchAssignment = async () => {
     try {
       const response = await axios.get(
         "http://localhost:5000/api/auth/getAssignment",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const res = await axios.get("http://localhost:5000/api/auth/getuser", {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       setStudentCount(res.data.totalstudents);
       setAssignments(response.data.Assignments);
     } catch (error) {
       if (error.response && error.response.status === 403) {
-        toast.error("session expired");
+        toast.error("Session expired");
         localStorage.clear();
         window.location.href = "/";
       } else {
@@ -70,6 +69,7 @@ const TeacherDashBoard = () => {
       }
     }
   };
+
   useEffect(() => {
     if (token) {
       fetchAssignment();
@@ -78,7 +78,6 @@ const TeacherDashBoard = () => {
 
   const handleAssignment = async (e) => {
     e.preventDefault();
-
     if (
       !newAssignment.title.trim() ||
       !newAssignment.description.trim() ||
@@ -89,6 +88,7 @@ const TeacherDashBoard = () => {
     } else {
       setIsCreating(true);
     }
+
     try {
       const response = await axios.post(
         "http://localhost:5000/api/auth/createAssignment",
@@ -101,12 +101,32 @@ const TeacherDashBoard = () => {
         description: "",
         deadline: "",
       });
-      toast.success("assignment succesfully created");
+      toast.success("Assignment successfully created");
     } catch (error) {
       console.log("error:", error.message);
     } finally {
       setIsCreating(false);
       closeModel();
+    }
+  };
+
+  const handleDownload = async (fileName) => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/download/${fileName}`, {
+        responseType: "blob",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName || "submission.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Download started");
+    } catch (error) {
+      toast.error("Failed to download");
+      console.log("error while download", error.message);
     }
   };
 
@@ -120,47 +140,43 @@ const TeacherDashBoard = () => {
       const res = await axios.get(
         `http://localhost:5000/api/auth/getsubmission/${assignment._id}`
       );
-      console.log(res.data);
       setSubmissions(res.data.submissions);
       setSelectedSubmission(res.data.submissions);
       setSubmodal(true);
-
-      console.log("receiver submissions", submissions);
     } catch (error) {
-      console.log("error while get submision", error.message);
+      console.log("error while get submission", error.message);
     }
   };
 
   const handleSave = async () => {
     try {
       const sub = selectedSubmission.find((s) => s._id === editingSubmissionId);
-
       if (!sub) {
-        toast.error("no submission is selected");
+        toast.error("No submission selected");
         return;
       }
-      
+
       await axios.put(
         `http://localhost:5000/api/auth/grade/${sub.studentId}/${sub.assignmentId}`,
         { grade: editedGrade, feedback },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      console.log('hiii')
 
       const updatedSubs = submissions.map((s) =>
-        s._id === editingSubmissionId ? {...s, grade: editedGrade, feedback } : s
+        s._id === editingSubmissionId
+          ? { ...s, grade: editedGrade, feedback }
+          : s
       );
       setSubmissions(updatedSubs);
       setSelectedSubmission([...updatedSubs]);
-
       setEditingSubmissionId(null);
       setEditedGrade("");
       setFeedBack("");
-      console.log(editingSubmissionId)
-      toast.success("grade and feedBack Saved");
+      fetchAssignment();
+      toast.success("Grade and feedback saved");
     } catch (error) {
       console.log("error saving grade", error.message);
-      toast.error("failed to save grade");
+      toast.error("Failed to save grade");
     }
   };
 
@@ -200,22 +216,25 @@ const TeacherDashBoard = () => {
               },
               {
                 title: "Total Submissions",
-                value: submissions.length,
+                value: assignments.reduce(
+                  (acc, a) => acc + a.submissionCount.length,
+                  0
+                ),
                 icon: FileText,
                 color: "green",
               },
               {
                 title: "Graded",
-                value: submissions.filter(
-                  (sub) => sub.grade !== null && sub.grade !== undefined
+                value: assignments.filter((a) =>
+                  a.submissionCount.every((s) => s.grade !== null)
                 ).length,
                 icon: CheckCircle,
                 color: "purple",
               },
               {
                 title: "Pending Grades",
-                value: submissions.filter(
-                  (sub) => sub.grade == null && sub.grade !== undefined
+                value: assignments.filter((a) =>
+                  a.submissionCount.some((s) => s.grade == null)
                 ).length,
                 icon: Clock,
                 color: "red",
@@ -295,7 +314,7 @@ const TeacherDashBoard = () => {
             ))}
           </div>
 
-          {/* Modals */}
+          {/* Create Assignment Modal */}
           {isModelOpen && (
             <div
               onClick={closeModel}
@@ -323,12 +342,7 @@ const TeacherDashBoard = () => {
                     placeholder="Enter assignment title"
                     className="mb-4"
                   />
-                  <Label
-                    htmlFor="description"
-                    className="text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Description
-                  </Label>
+                  <Label htmlFor="description">Description</Label>
                   <textarea
                     name="description"
                     id="description"
@@ -368,20 +382,34 @@ const TeacherDashBoard = () => {
             </div>
           )}
 
-          {/* Submissions Modal */}
+          {/* Improved Submissions Modal */}
           {subModal && (
             <div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-center p-4"
               onClick={() => setSubmodal(false)}
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white w-full max-w-3xl rounded-xl shadow-lg p-6 overflow-y-auto max-h-[90vh]"
+                className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]"
               >
+                {/* Header */}
+                <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                    Student Submissions
+                  </h2>
+                  <button
+                    onClick={() => setSubmodal(false)}
+                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                  >
+                    ×
+                  </button>
+                </div>
+
                 {selectedSubmission.length === 0 ? (
-                  <div className="text-center py-10">
+                  <div className="text-center py-16">
                     <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
                       No Submissions Yet
                     </h3>
                     <p className="text-gray-600">
@@ -389,51 +417,60 @@ const TeacherDashBoard = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-8">
+                  <div className="space-y-6">
                     {selectedSubmission.map((sub) => (
                       <div
                         key={sub._id}
-                        className="bg-gray-50 border border-gray-200 rounded-lg p-5"
+                        className="bg-gray-50 border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all"
                       >
-                        <div className="flex items-center gap-4 mb-3">
-                          <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center">
-                            <Users className="text-blue-600 w-6 h-6" />
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center">
+                              <Users className="text-blue-600 w-6 h-6" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900 text-lg">
+                                {sub.studentName}
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                {sub.studentEmail}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
-                              {sub.studentName}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {sub.studentEmail}
-                            </p>
-                            <a
-                              className="text-blue-500 font-bold text-sm "
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              href={sub.fileUrl}
-                            >
-                              see the assignment
-                            </a>
-                          </div>
+
+                          <a
+                            className="text-blue-600 hover:underline text-sm font-medium"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            href={sub.fileUrl}
+                          >
+                            📄 View Assignment
+                          </a>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-b border-gray-200 py-3 mb-4">
-                          <span className="text-gray-700 font-medium">
-                            Grade
-                          </span>
-                          <div className="flex items-center gap-2">
+                        {/* Grade Section */}
+                        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-700 font-semibold">
+                              Grade
+                            </span>
                             {sub._id === editingSubmissionId ? (
                               <Input
                                 type="number"
                                 value={editedGrade}
-                                onChange={(e) => setEditedGrade(e.target.value)}
-                                className="w-20 border-gray-300 rounded-md"
+                                onChange={(e) =>
+                                  setEditedGrade(e.target.value)
+                                }
+                                className="w-24 border-gray-300 rounded-md"
                               />
                             ) : (
                               <span className="text-xl font-bold text-green-600">
-                                {sub?.grade}/100
+                                {sub?.grade ?? "—"}/100
                               </span>
                             )}
+                          </div>
+
+                          <div className="flex items-center justify-end">
                             <Pencil
                               className="w-5 h-5 text-gray-500 cursor-pointer hover:text-gray-800"
                               onClick={() => {
@@ -445,19 +482,23 @@ const TeacherDashBoard = () => {
                           </div>
                         </div>
 
+                        {/* Feedback Section */}
                         <div>
-                          <h4 className="text-gray-800 font-medium mb-2">
+                          <h4 className="text-gray-800 font-semibold mb-2">
                             Feedback
                           </h4>
                           {sub._id === editingSubmissionId ? (
                             <div className="space-y-3">
-                              <Input
-                                type="text"
+                              <textarea
+                                rows="3"
                                 value={feedback}
-                                onChange={(e) => setFeedBack(e.target.value)}
-                                className="w-full border-gray-300 rounded-md"
+                                onChange={(e) =>
+                                  setFeedBack(e.target.value)
+                                }
+                                className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="Write feedback..."
                               />
-                              <div className="flex gap-3">
+                              <div className="flex flex-wrap gap-3 justify-end">
                                 <Button
                                   onClick={handleSave}
                                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
@@ -470,14 +511,14 @@ const TeacherDashBoard = () => {
                                     setEditedGrade("");
                                     setFeedBack("");
                                   }}
-                                  className="bg-gray-700 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg"
+                                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg"
                                 >
                                   Cancel
                                 </Button>
                               </div>
                             </div>
                           ) : (
-                            <p className="text-sm text-gray-700 bg-white border border-gray-200 rounded-md p-3">
+                            <p className="text-sm text-gray-700 bg-white border border-gray-200 rounded-lg p-3">
                               {sub.feedback || "No feedback yet."}
                             </p>
                           )}
@@ -486,11 +527,10 @@ const TeacherDashBoard = () => {
                         <Button
                           variant="outline"
                           onClick={() =>
-                            alert(`${sub?.fileName} is downloading`)
+                            handleDownload(sub.fileUrl.split("/").pop())
                           }
-                          className="w-full mt-4 border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg py-2"
+                          className="mt-4 w-full sm:w-auto border-gray-300 hover:bg-blue-50 hover:text-blue-600 transition-all"
                         >
-                          <FileText className="w-4 h-4 mr-2" />
                           Download Submission
                         </Button>
                       </div>

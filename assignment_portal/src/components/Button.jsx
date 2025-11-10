@@ -8,7 +8,7 @@ const Button = ({
     onClick,
     variant = 'primary', 
     size = 'md',
-    disabled = false
+    disabled = false,...props
 }) => {
 
    const variants = {
@@ -40,6 +40,7 @@ const Button = ({
             onClick={onClick} 
             type={type} 
             disabled={disabled}
+            {...props}
         >
             {children}
         </button>

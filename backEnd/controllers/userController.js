@@ -15,6 +15,8 @@ export const createUser = async (req, res) => {
 
     const hashPassword = await bcrypt.hash(passWord, 10);
 
+
+
     await userModel.create({
       name,
       email,
@@ -28,7 +30,8 @@ export const createUser = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {
+export const 
+login = async (req, res) => {
   try {
     console.log('login body:',req.body)
     const { email, passWord } = req.body;
@@ -290,6 +293,9 @@ try {
 
 
  } 
+
+
+
 
 
 

@@ -12,7 +12,7 @@ try {
 
         return res.status(401).json({message:"token missing or invalid token"})
     }
-    const token =authHeader.split(" ")[1]
+    const token =authHeader.split(" ")[1] 
     const decoded =jwt.verify(token,process.env.JWT_SECRET)
     req.user =decoded
 
@@ -29,7 +29,7 @@ try {
 
 export const isteacher =(req,res,next)=>{
 
-if(req.user.role !=='teacher'){
+if(req.user?.role !=='teacher'){
 
 return res.status(403).json({message:"access denied:only teacher"})
 
